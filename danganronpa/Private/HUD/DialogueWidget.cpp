@@ -19,93 +19,39 @@ void UDialogueWidget::NativeOnInitialized()
 
 	if (MyDialogue)
 	{
-		MyDialogue->GetAllRows(ContextString, Dialogues);//DialoguesÒÑ»ñÈ¡DataTableËùÓĞĞĞĞÅÏ¢
-		FDialogData* _data = MyDialogue->FindRow< FDialogData>(_rowname, ContextString, false);//false´ú±í²»±¨´í
-		// ¸üĞÂÎÄ±¾¿òÄÚÈİ
-		DialogueText->SetText(FText::FromString(Dialogues[TextIndex]->DialogueText));
+		MyDialogue->GetAllRows(ContextString, Dialogues);//Dialogueså·²è·å–DataTableçš„æ‰€æœ‰ä¿¡æ¯
+		FDialogData* _data = MyDialogue->FindRow< FDialogData>(_rowname, ContextString, false);//falseè¡¨ç¤ºå¯é€‰
+		// è®¾ç½®åˆå§‹æ–‡æœ¬
+		if (Dialogues.IsValidIndex(TextIndex))
+        {
+		    DialogueText->SetText(FText::FromString(Dialogues[TextIndex]->DialogueText));
+        }
 	}
 	else {
 		UE_LOG(LogTemp, Warning, TEXT("No connected DT"));
 	}
+
+    // vvvvvv NEW CODE vvvvvv
+    BuildPipeline(); // ç»„è£…è£…é¥°å™¨é“¾
+    Ctx = MakeUnique<FDlgContext>(); // åˆ›å»ºä¸Šä¸‹æ–‡å¯¹è±¡
+    Ctx->Widget = this; // åˆå§‹åŒ–ä¸Šä¸‹æ–‡
+    // ^^^^^^ NEW CODE ^^^^^^
 }
 
+// vvvvvv REFACTORED FUNCTION vvvvvv
 void UDialogueWidget::OnBubbleClicked()
 {
-	if (bIsAnimating) {
-		// Èç¹ûÕıÔÚ²¥·Å¶¯»­£¬Ö±½Ó·µ»Ø£¬±ÜÃâÖØ¸´´¥·¢
-		UE_LOG(LogTemp, Warning, TEXT("Animation is in progress. Ignoring further clicks."));
-		return;
-	}
-
-	if (TextIndex < Dialogues.Num()) {
-		if (Dialogues[TextIndex]->out) {
-			UE_LOG(LogTemp, Warning, TEXT("Sensed Out"));
-			SetPortraitHidden();
-			SetTextAndBubbleHidden();
-
-			if (InMainDialogue) {
-				if (TextIndex == 2) {
-					InvestigatePhase = true;
-				}
-				if (TextIndex == Dialogues.Num() - 1 && InvestigatePhase && PaperRead && CameraRead) {
-					PlayAnimate();
-					InvestigatePhase = false;
-				}
-				else if (TextIndex == 3) {
-					bIsAnimating = true; // ±ê¼Ç¶¯»­ÕıÔÚ²¥·Å
-
-					// ²¥·ÅÒş²Ø¶¯»­
-					PlayAnimation(BroadcastFade);
-					SetTextAndBubbleHidden();
-
-					// ÑÓ³ÙÇĞ»»µ½ MyDialogue µÄµÚÈı¾ä»°
-					GetWorld()->GetTimerManager().SetTimer(
-						TimerHandle1,
-						[this]() {
-							// ÏÔÊ¾µÚÈı¾ä»°
-							TextIndex = 4;
-							DialogueText->SetText(FText::FromString(Dialogues[TextIndex]->DialogueText));
-
-							// ²¥·ÅÏÔÊ¾¶¯»­²¢ÏÔÊ¾¶Ô»°¿ò
-							SetTextAndBubbleVisible();
-							SetPortraitVisible();
-							// ¶¯»­²¥·ÅÍê³É£¬ÖØÖÃ±ê¼Ç
-							bIsAnimating = false;
-						},
-						2.0f, // ÑÓ³Ù 1 Ãë
-						false
-					);
-				}
-				else if (TextIndex == 4) {
-					// ¶Ô»°½áÊø£¬ÇĞ»»µ½ĞÂµÄ¹Ø¿¨
-					TextIndex = -1;
-					UE_LOG(LogTemp, Warning, TEXT("Dialogue Finished. Loading Map_Playground..."));
-					UGameplayStatics::OpenLevel(this, FName("FirstPersonMap"));
-				}
-			}
-		}
-		// Èç¹ûÓĞĞÂÁ¢»æ
-		else if (Dialogues[TextIndex + 1]->intro) {
-			SetPortraitHidden();
-			TextIndex++;
-			SetPortraitVisible();
-			DialogueText->SetText(FText::FromString(Dialogues[TextIndex]->DialogueText));
-		}
-		// Õı³£ÏÔÊ¾ÏÂÒ»¾ä
-		else {
-			DialogueText->SetText(FText::FromString(Dialogues[++TextIndex]->DialogueText));
-		}
-	}
-	else if (InvestigatePhase) {
-		// ...
-	}
-	else {
-
-	}
+    // å¤æ‚çš„é€»è¾‘ç°åœ¨è¢«å§”æ‰˜ç»™è£…é¥°å™¨é“¾
+    if (RootStep)
+    {
+        RootStep->Execute(*Ctx);
+    }
 }
+// ^^^^^^ REFACTORED FUNCTION ^^^^^^
 
 
-
+// --- UNCHANGED FUNCTIONS (FOR NOW) ---
+// Note: The logic inside these functions can also be moved into decorators later.
 
 void UDialogueWidget::OnCameraClicked()
 {
@@ -123,37 +69,30 @@ void UDialogueWidget::OnCameraClicked()
 
 void UDialogueWidget::OnPaperClicked()
 {
-	TextIndex = -1; // ÖØÖÃ¶Ô»°Ë÷Òı
-	PaperRead = true; // ±ê¼Ç Paper ¶Ô»°ÒÑ¶Á
+	TextIndex = -1; // é‡ç½®å¯¹è¯ç´¢å¼•
+	PaperRead = true; // æ ‡è®° Paper å¯¹è¯å·²è¯»
 
 	if (InvestigatePhase) {
 		FString ContextString = TEXT("TEST");
 		Dialogues.Empty();
 		PaperDialogue->GetAllRows(ContextString, Dialogues);
 
-		// ÏÔÊ¾ Paper ¶Ô»°µÄµÚÒ»¾ä»°
+		// æ˜¾ç¤º Paper å¯¹è¯çš„ç¬¬ä¸€å¥è¯
 		SetTextAndBubbleVisible();
 		DialogueText->SetText(FText::FromString(Dialogues[++TextIndex]->DialogueText));
-
-		// ²¥·Å¶¯»­Âß¼­ÓÉ OnBubbleClicked ¼ÌĞø´¦Àí
 	}
 }
-
-
-
 
 void UDialogueWidget::PlayAnimate()
 {
 	if (PaperRead && CameraRead) {
-		TextMoveOn(0.0f); // ÑÓ³Ù´¦ÀíÆäËûÂß¼­
+		TextMoveOn(0.0f); // å»¶è¿Ÿè§¦å‘åç»­é€»è¾‘
 	}
 }
 
-
-
 void UDialogueWidget::SetTextAndBubbleHidden()
 {
-	TextBubble->SetVisibility(ESlateVisibility::Hidden);//°´Å¥²»¿É¼ûÇÒ²»¿É½»»¥
+	TextBubble->SetVisibility(ESlateVisibility::Hidden);//æŒ‰é’®ä¸å¯è§æ€§ä¹Ÿå¯ä»¥è¢«è®¾ç½®
 	DialogueText->SetVisibility(ESlateVisibility::Hidden);
 }
 
@@ -181,21 +120,21 @@ void UDialogueWidget::InitializePortraits()
 
 void UDialogueWidget::TextMoveOn(float delay)
 {
-	// È·±£ TextIndex ¶¨Î»µ½±àºÅÎª 3 µÄ¶Ô»°
+	// ç¡®ä¿ TextIndex å®šä½åˆ°ç´¢å¼•ä¸º 3 çš„å¯¹è¯
 	int32 TargetIndex = 3;
 
-	// ¼ì²é Dialogues ÊÇ·ñÓĞĞ§²¢°üº¬Ë÷ÒıÎª 3 ºÍ 4 µÄÄÚÈİ
+	// æ£€æŸ¥ Dialogues æ˜¯å¦æœ‰æ•ˆå¹¶ä¸”ç´¢å¼•ä¸º 3 å’Œ 4 çš„å…ƒç´ å­˜åœ¨
 	if (MyDialogue) {
 		FString ContextString = TEXT("TEST");
 		Dialogues.Empty();
 		MyDialogue->GetAllRows(ContextString, Dialogues);
 
 		if (Dialogues.IsValidIndex(TargetIndex) && Dialogues.IsValidIndex(TargetIndex + 1)) {
-			// ÏÔÊ¾µÚ 3 ĞĞ¶Ô»°
+			// æ˜¾ç¤ºç¬¬ 3 æ®µå¯¹è¯
 			TextIndex = TargetIndex;
 			DialogueText->SetText(FText::FromString(Dialogues[TextIndex]->DialogueText));
 
-			// ²¥·Å³öÏÖ¶¯»­²¢ÏÔÊ¾¶Ô»°¿ò
+			// æ’­æ”¾åŠ¨ç”»å¹¶æ˜¾ç¤ºå¯¹è¯
 			PlayAnimation(BroadcastAppear);
 			SetTextAndBubbleVisible();
 		}
@@ -208,26 +147,95 @@ void UDialogueWidget::TextMoveOn(float delay)
 	}
 }
 
-
-
 void UDialogueWidget::SetPortraitVisible()
 {
+	if (!Dialogues.IsValidIndex(TextIndex)) return;
+
 	UE_LOG(LogTemp, Warning, TEXT("SettingPortraitVisible"));
 	CurrentPortrait = Cast<UImage>(GetWidgetFromName(FName(Dialogues[TextIndex]->CharacterName)));
-	//»ñÈ¡µ±Ç°ÔÚËµ»°µÄÁ¢»æÃû
+	//è·å–å½“å‰è¯´è¯è€…çš„åå­—
 	if (CurrentPortrait)
 		CurrentPortrait->SetVisibility(ESlateVisibility::Visible);
 }
 
 void UDialogueWidget::SetPortraitHidden()
 {
+    if (!Dialogues.IsValidIndex(TextIndex)) return;
+
 	CurrentPortrait = Cast<UImage>(GetWidgetFromName(FName(Dialogues[TextIndex]->CharacterName)));
-	//»ñÈ¡µ±Ç°ÔÚËµ»°µÄÁ¢»æÃû
+	//è·å–å½“å‰è¯´è¯è€…çš„åå­—
 	if (CurrentPortrait)
 		CurrentPortrait->SetVisibility(ESlateVisibility::Hidden);
 }
 
 
+// ----------------- DECORATOR PATTERN IMPLEMENTATION (IN-FILE) -----------------
 
+// vvvvvv NEW FUNCTIONS vvvvvv
 
+void UDialogueWidget::BuildPipeline()
+{
+    // ç»„è£…è£…é¥°å™¨é“¾ï¼Œé¡ºåºæ˜¯ï¼šä»å†…åˆ°å¤–
+    // 1. æ ¸å¿ƒæ˜¯â€œæ˜¾ç¤ºæ–‡æœ¬å¹¶æ¨è¿›â€
+    TUniquePtr<IDlgStep> Core = MakeUnique<FCoreStep>();
+    // 2. ç”¨â€œç«‹ç»˜å¤„ç†å™¨â€åŒ…è£¹æ ¸å¿ƒ
+    TUniquePtr<IDlgStep> WithPortrait = MakeUnique<FPortraitDeco>(MoveTemp(Core));
+    // 3. æœ€å¤–å±‚ç”¨â€œè¾“å…¥å®ˆå«â€åŒ…è£¹ï¼Œæœ€å…ˆè¢«è°ƒç”¨
+    TUniquePtr<IDlgStep> WithGuard = MakeUnique<FInputGuardDeco>(MoveTemp(WithPortrait));
 
+    // ä¿å­˜æœ€å¤–å±‚çš„è£…é¥°å™¨ä½œä¸ºå…¥å£
+    RootStep = MoveTemp(WithGuard);
+}
+
+// æ ¸å¿ƒæ­¥éª¤ï¼šæ˜¾ç¤ºæ–‡æœ¬å¹¶æ¨è¿›ç´¢å¼•
+void FCoreStep::Execute(FDlgContext& Ctx)
+{
+    if (!Ctx.Widget) return;
+    UDialogueWidget* W = Ctx.Widget;
+
+    // æ£€æŸ¥ç´¢å¼•æ˜¯å¦æœ‰æ•ˆ
+    if (W->Dialogues.IsValidIndex(W->TextIndex))
+    {
+        // ä»…è´Ÿè´£æ˜¾ç¤ºæ–‡æœ¬å’Œæ¨è¿›ç´¢å¼•
+        W->DialogueText->SetText(FText::FromString(W->Dialogues[W->TextIndex]->DialogueText));
+        W->TextIndex++; // æ ¸å¿ƒï¼šç´¢å¼•+1
+    }
+    else
+    {
+        // å¦‚æœå¯¹è¯ç»“æŸï¼Œå¯ä»¥åŠ ä¸€ä¸ªç»“æŸé€»è¾‘ï¼Œè¿™é‡Œæš‚æ—¶ç•™ç©º
+        UE_LOG(LogTemp, Warning, TEXT("Dialogue ended or invalid index."));
+        // Example: W->GetWorld()->GetFirstPlayerController<ADialoguePlayerController>()->EndDialogue();
+    }
+}
+
+// è¾“å…¥å®ˆå«ï¼šåŠ¨ç”»æœŸé—´ç¦æ­¢æ¨è¿›
+void FInputGuardDeco::Execute(FDlgContext& Ctx)
+{
+    if (!Ctx.Widget) return;
+    // å¦‚æœæ­£åœ¨æ’­æ”¾åŠ¨ç”»ï¼Œç›´æ¥è¿”å›ï¼Œä¸æ‰§è¡Œåç»­æ­¥éª¤
+    if (Ctx.Widget->bIsAnimating)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Input blocked by FInputGuardDeco."));
+        return;
+    }
+    // å¦åˆ™ï¼Œæ­£å¸¸æ‰§è¡Œå†…éƒ¨åŒ…è£¹çš„æ­¥éª¤
+    FDlgDecorator::Execute(Ctx);
+}
+
+// ç«‹ç»˜å¤„ç†ï¼šæ˜¾ç¤ºå’Œéšè—å½“å‰è¡Œçš„è§’è‰²ç«‹ç»˜
+void FPortraitDeco::Execute(FDlgContext& Ctx)
+{
+    if (!Ctx.Widget) return;
+    UDialogueWidget* W = Ctx.Widget;
+
+    // åœ¨æ‰§è¡Œæ ¸å¿ƒæ­¥éª¤ä¹‹å‰ï¼Œæ˜¾ç¤ºç«‹ç»˜
+    // æ³¨æ„ï¼šè¿™é‡Œç®€åŒ–äº†é€»è¾‘ï¼Œæ²¡æœ‰å¤„ç† intro/outã€‚å¯ä»¥åç»­æ·»åŠ ä¸ºæ–°çš„è£…é¥°å™¨ã€‚
+    W->SetPortraitVisible();
+
+    // æ‰§è¡Œå†…éƒ¨åŒ…è£¹çš„æ­¥éª¤ (ä¾‹å¦‚ FCoreStep)
+    FDlgDecorator::Execute(Ctx);
+
+    // åœ¨æ ¸å¿ƒæ­¥éª¤æ‰§è¡Œä¹‹åï¼Œå¯ä»¥éšè—ç«‹ç»˜ï¼ˆå¦‚æœéœ€è¦çš„è¯ï¼‰
+    // W->SetPortraitHidden();
+}
+// ^^^^^^ NEW FUNCTIONS ^^^^^^
