@@ -6,9 +6,6 @@
 #include "Engine/TriggerBox.h"
 #include "MyTriggerBox.generated.h"
 
-class UTriggerCommand;
-class AActor;
-
 
 
 
@@ -26,14 +23,6 @@ protected:
     // 触发框
     UPROPERTY(VisibleAnywhere, Category = "Trigger")
     UBoxComponent* TriggerBox;
-
-    // Refactored with Command Pattern: command to execute when hit
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "Trigger|Command")
-    TObjectPtr<UTriggerCommand> HitCommand;
-
-    // Cache the actor that caused the trigger (optional context for commands)
-    UPROPERTY(Transient)
-    TObjectPtr<AActor> LastOtherActor;
 
     // 重叠事件函数
     UFUNCTION(BlueprintCallable)

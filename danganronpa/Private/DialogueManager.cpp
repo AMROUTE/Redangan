@@ -2,36 +2,37 @@
 
 
 #include "DialogueManager.h"
+#include "Services/ServiceLocator.h"
+#include "Services/IDialogueRepository.h"
+#include "Events/EventBus.h"
 
 
+// é‡‡ç”¨Service Locatoræ¨¡å¼é‡æ„ï¼šé€šè¿‡ä»“åº“æ¥å£è·å–ä¸‹ä¸€æ¡å¯¹è¯ï¼ˆç¤ºä¾‹ï¼Œé€»è¾‘æ¼”ç¤ºï¼‰
 bool ADialogueManager::GetNextDialogue(FString& OutCharacterName, FString& OutDialogueText, UTexture2D*& OutCharacterImage)
 {
+    FServiceContext Ctx{ *UGameplayStatics::GetCurrentLevelName(this), TEXT("prod") };
+    IDialogueRepository* Repo = ServiceLocator::Resolve<IDialogueRepository>(Ctx);
+    if (Repo)
+    {
+        return Repo->GetNextDialogue(OutCharacterName, OutDialogueText, OutCharacterImage);
+    }
+    // å›é€€ï¼šä¿ç•™åŸé€»è¾‘ï¼ˆå¯é€‰ï¼‰
     if (!DialogueTable) return false;
-
-    // »ñÈ¡ËùÓĞĞĞµÄ ID
     static const FString ContextString(TEXT("Dialogue Context"));
     TArray<FName> RowNames = DialogueTable->GetRowNames();
-
-    // ¼ì²éË÷ÒıÊÇ·ñ³¬³ö·¶Î§
-    if (CurrentIndex >= RowNames.Num())
-    {
-        return false; // ¶Ô»°½áÊø
-    }
-
-    // »ñÈ¡µ±Ç°ĞĞÊı¾İ
+    if (CurrentIndex >= RowNames.Num()) { return false; }
     FName CurrentRowName = RowNames[CurrentIndex];
     FDialogueRow* CurrentRow = DialogueTable->FindRow<FDialogueRow>(CurrentRowName, ContextString);
-
     if (CurrentRow)
     {
         OutCharacterName = CurrentRow->CharacterName;
         OutDialogueText = CurrentRow->DialogueText;
         OutCharacterImage = CurrentRow->CharacterImage;
-
-        CurrentIndex++; // ÍÆ½øµ½ÏÂÒ»ĞĞ
+        CurrentIndex++;
         return true;
     }
-
+    return false;
+}
     return false;
 }
 

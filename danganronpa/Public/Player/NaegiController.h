@@ -18,6 +18,7 @@ class DANGANRONPA_API ANaegiController : public APlayerController
 	GENERATED_BODY()
 public:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 
 
@@ -62,5 +63,13 @@ public:
 	HoverBrush.SetResourceObject(LoadObject<UTexture2D>(nullptr, TEXT("Content/resources/images/DanganCursor_Focus")));*/
 private:
 	FTimerHandle TimerHandle1;
+
+	// 事件订阅句柄
+	FDelegateHandle ScreenChangeHandle;
+	FDelegateHandle DialogueEndedHandle;
+
+	// 事件处理
+	void OnScreenChangeRequested(const struct FScreenChangeRequested& Event);
+	void OnDialogueEnded(const struct FDialogueEnded& Event);
 };
 

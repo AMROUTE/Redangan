@@ -61,35 +61,4 @@ public:
 	void SetTextAndBubbleVisible();
 
 	bool EndMap = false;
-	// ============ 状态管理 ============
-	UFUNCTION(BlueprintCallable, Category = "Dialogue State")
-	void ChangeDialogueState(TSubclassOf<UBaseDialogueState> NewStateClass);
-
-	UFUNCTION(BlueprintCallable, Category = "Dialogue State")
-	FString GetCurrentStateName() const;
-
-	// 状态快捷方法
-	void EnterPlayingState();
-	void EnterInvestigateState(UDataTable* InvestigationTable = nullptr);
-	void EnterChoiceState(const TArray<FString>& Choices, const TArray<FString>& Targets);
-	void EnterHiddenState(float AutoReturnDelay = 4.0f);
-
-	// 获取当前状态（供子类访问）
-	UFUNCTION(BlueprintCallable, Category = "Dialogue State")
-	UBaseDialogueState* GetCurrentState() const { return CurrentDialogueState; }
-protected:
-	// 状态管理
-	UPROPERTY()
-	UBaseDialogueState* CurrentDialogueState;
-
-	// 状态实例缓存
-	UPROPERTY()
-	TMap<FString, UBaseDialogueState*> DialogueStateInstances;
-
-	// 创建状态实例
-	UBaseDialogueState* CreateStateInstance(TSubclassOf<UBaseDialogueState> StateClass);
-
-	// 状态转换事件（可被子类重写）
-	virtual void OnStateChanged(const FString& PreviousState, const FString& NewState);
-
 };

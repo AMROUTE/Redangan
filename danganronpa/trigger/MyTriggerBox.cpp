@@ -1,5 +1,4 @@
 #include "MyTriggerBox.h"
-#include "TriggerCommand.h"
 #include "../Public/MyCharacter.h"
 #include "../danganronpaProjectile.h"  // 包含子弹类头文件
 #include "GameFramework/PlayerController.h"
@@ -27,8 +26,6 @@ void AMyTriggerBox::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
         UE_LOG(LogTemp, Warning, TEXT("子弹与触发框发生碰撞"));
 
         // 执行相应的触发事件
-        // Refactored with Command Pattern: cache context for the command
-        LastOtherActor = OtherActor;
         OnTriggerHit();  // 执行触发框事件
     }
 }
@@ -36,14 +33,21 @@ void AMyTriggerBox::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 // 根据触发框执行不同的逻辑
 void AMyTriggerBox::OnTriggerHit()
 {
-    // Refactored with Command Pattern
-    if (HitCommand)
+    // 你可以根据触发框的名称或其他属性执行不同的逻辑
+    if (this->GetName() == TEXT("triggerFalse"))
     {
-        HitCommand->Execute(this, LastOtherActor);
-        return;
+        UE_LOG(LogTemp, Warning, TEXT("False 被触发"));
+        TriggerDeath();
+        // 触发框1的逻辑
     }
+    else if (this->GetName() == TEXT("triggerRight"))
+    {
+        // 执行打开下一个关卡的操作
+        UGameplayStatics::OpenLevel(this, FName("dialogueEndStage"));
 
-    UE_LOG(LogTemp, Warning, TEXT("Trigger hit, but no HitCommand is set on %s"), *GetName());
+        UE_LOG(LogTemp, Warning, TEXT("Right 被触发"));
+        // 触发框2的逻辑
+    }
 }
 
 void AMyTriggerBox::TriggerDeath()
